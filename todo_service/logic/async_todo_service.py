@@ -11,7 +11,7 @@ class AsyncTodoService(ABC):
         ...
 
     @abstractmethod
-    async def get_todo_by_id(self, attr_value: str) -> TodoBoundary:
+    async def get_todo_by_id(self, attr_value: str) -> Optional[TodoBoundary]:
         ...
 
     @abstractmethod

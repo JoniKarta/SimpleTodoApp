@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=r".env",
+        env_file=r"C:\Users\jkart\PycharmProjects\TodoApp\SimpleTodoApp\.env",
     )
 
     DATABASE_URL: str

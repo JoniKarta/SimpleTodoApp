@@ -1,6 +1,7 @@
 from typing import Annotated, Callable, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from starlette.status import (
     HTTP_200_OK,
     HTTP_201_CREATED,
@@ -11,7 +12,6 @@ from starlette.status import (
 
 from configuration.config import Config
 from todo_service.boundaries.todo_boundary import TodoBoundary
-from todo_service.dal.mock_todo_dao import get_todo_dao
 from todo_service.enums.attribute_types import AttributeTypes
 from todo_service.logic.async_todo_service import AsyncTodoService
 from todo_service.logic.mock_todo_service import MockTodoService
@@ -19,12 +19,17 @@ from todo_service.logic.todo_service import TodoService
 
 config = Config()
 
+if config.DEV_ENVIRONMENT:
+    from todo_service.dal.mock_todo_dao import get_todo_dao
+else:
+    from todo_service.dal.todo_dao import get_todo_dao
+
 router = APIRouter(tags=["Todo Routes"])
 
 
-def get_todo_service() -> AsyncTodoService:
+def get_todo_service(todo_dao: Annotated[Session, Depends(get_todo_dao)]) -> AsyncTodoService:
     todo_service = MockTodoService() if config.DEV_ENVIRONMENT else TodoService()
-    todo_service.set_todo_dao(get_todo_dao())
+    todo_service.set_todo_dao(todo_dao)
     return todo_service
 
 

@@ -14,4 +14,4 @@ class TodoBoundary(BaseModel):
 
     @classmethod
     def from_entity(cls, todo_entity: "TodoEntity") -> "TodoBoundary":
-        return cls(**todo_entity.model_dump())
+        return cls.model_validate({key: value for key, value in vars(todo_entity).items() if not key.startswith('_')})
