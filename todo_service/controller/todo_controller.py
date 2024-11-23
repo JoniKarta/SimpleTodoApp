@@ -1,6 +1,6 @@
 from typing import Annotated, Callable, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from starlette.status import (
     HTTP_200_OK,
@@ -12,6 +12,7 @@ from starlette.status import (
 
 from configuration.config import Config
 from todo_service.boundaries.todo_boundary import TodoBoundary
+from todo_service.dal.pagination import Pagination, SearchByPagination
 from todo_service.enums.attribute_types import AttributeTypes
 from todo_service.logic.async_todo_service import AsyncTodoService
 from todo_service.logic.mock_todo_service import MockTodoService
@@ -35,15 +36,15 @@ def get_todo_service(todo_dao: Annotated[Session, Depends(get_todo_dao)]) -> Asy
 
 @router.get("/todos", status_code=HTTP_200_OK)
 async def get_all_todos(
+        pagination_query: Annotated[Pagination, Query()],
         todo_service: Annotated[AsyncTodoService, Depends(get_todo_service)]
 ):
-    return await todo_service.get_all_todos()
+    return await todo_service.get_all_todos(pagination_query)
 
 
 @router.get("/todos/attribute_type", status_code=HTTP_200_OK)
 async def get_todo_by_attribute(
-        attr_type: AttributeTypes,
-        attr_value: str,
+        pagination_query: Annotated[SearchByPagination, Query()],
         todo_service: Annotated[AsyncTodoService, Depends(get_todo_service)],
 ):
     method_map: Dict[AttributeTypes, Callable] = {
@@ -51,7 +52,8 @@ async def get_todo_by_attribute(
         AttributeTypes.TITLE: todo_service.get_todo_by_title,
         AttributeTypes.PRIORITY: todo_service.get_todo_by_priority,
     }
-
+    attr_type = pagination_query.search_type
+    attr_value = pagination_query.search_value
     method = method_map.get(attr_type)
     if not method:
         raise HTTPException(
@@ -61,7 +63,7 @@ async def get_todo_by_attribute(
         )
 
     try:
-        ret_value = await method(attr_value)
+        ret_value = await method(attr_value, pagination_query)
     except ValueError as err:
         raise HTTPException(
             HTTP_400_BAD_REQUEST,
