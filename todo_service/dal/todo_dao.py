@@ -1,11 +1,4 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from configuration.config import Config
-
-config = Config()
-engine = create_engine(url=config.DATABASE_URL)
-session_local = sessionmaker(bind=engine, autoflush=False)
+from common.database.repository import session_local
 
 
 def get_todo_dao():
