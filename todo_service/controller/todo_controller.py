@@ -70,7 +70,7 @@ async def get_todo_by_attribute(
             detail=f"Invalid input for attribute value: {attr_value}. {str(err)}",
         )
 
-    if not ret_value:
+    if ret_value is None:
         raise HTTPException(
             HTTP_404_NOT_FOUND,
             detail=f"No task found matching {attr_type.value.lower()}='{attr_value}'.",

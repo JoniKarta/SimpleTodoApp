@@ -1,9 +1,8 @@
 import asyncio
 from typing import List, Optional
 
-from python_multipart.multipart import Field
-
 from todo_service.boundaries.todo_boundary import TodoBoundary
+from todo_service.dal.pagination import Pagination
 from todo_service.entities.mock_todo_entity import MockTodoEntity
 from todo_service.enums.todo_priority import Priority
 from todo_service.logic.async_todo_service import AsyncTodoService
@@ -14,11 +13,11 @@ class MockTodoService(AsyncTodoService):
     Mock implementation of an asynchronous TodoTask management service.
 
     This service provides mock functionality for managing task items, including CRUD operations.
-    It uses a simulated response delay (`MOCK_RESPONSE_DELAY`) to mimic real-world network latency.
+    It simulates real-world network latency with a configurable response delay.
 
     Attributes:
         MOCK_RESPONSE_DELAY (float): Simulated delay (in seconds) for asynchronous responses.
-        todo_dao (List[TodoBoundary]): A mock database of task entities.
+        todo_dao (List[MockTodoEntity]): A mock database of task entities.
     """
 
     MOCK_RESPONSE_DELAY = 0.01
@@ -27,26 +26,34 @@ class MockTodoService(AsyncTodoService):
         """
         Initializes a new instance of MockTodoService.
         """
-        self.todo_dao = None
+        self.todo_dao: List[MockTodoEntity] = []
 
-    def set_todo_dao(self, todo_dao: List[TodoBoundary]):
+    def set_todo_dao(self, todo_dao: List[MockTodoEntity]):
         """
         Sets the mock task DAO (data access object).
 
         Args:
-            todo_dao (List[TodoBoundary]): List of TaskBoundary objects simulating the database.
+            todo_dao (List[MockTodoEntity]): A list of mock task entities simulating the database.
         """
         self.todo_dao = todo_dao
 
-    async def get_all_todos(self) -> List[TodoBoundary]:
+    async def get_all_todos(self, pagination_query: Pagination) -> List[TodoBoundary]:
         """
-        Retrieves all task items.
+        Retrieves all task items with pagination and sorting.
+
+        Args:
+            pagination_query (Pagination): Pagination and sorting parameters.
 
         Returns:
-            List[TodoBoundary]: List of all task items.
+            List[TodoBoundary]: A paginated list of task items.
         """
         await asyncio.sleep(self.MOCK_RESPONSE_DELAY)
-        return [TodoBoundary.from_entity(todo_entity) for todo_entity in self.todo_dao]
+        todo_entities = sorted(
+            self.todo_dao[pagination_query.offset():pagination_query.offset() + pagination_query.size],
+            key=lambda obj: getattr(obj, pagination_query.order_by),
+            reverse=pagination_query.desc,
+        )
+        return [TodoBoundary.from_entity(todo_entity) for todo_entity in todo_entities]
 
     async def get_todo_by_id(self, attr_value: str) -> Optional[TodoBoundary]:
         """
@@ -61,43 +68,58 @@ class MockTodoService(AsyncTodoService):
         await asyncio.sleep(self.MOCK_RESPONSE_DELAY)
         return next(
             (TodoBoundary.from_entity(todo_entity) for todo_entity in self.todo_dao if todo_entity.id == attr_value),
-            None
+            None,
         )
 
-    async def get_todo_by_title(self, attr_value: str) -> List[TodoBoundary]:
+    async def get_todo_by_title(self, attr_value: str, pagination_query: Pagination) -> List[TodoBoundary]:
         """
         Retrieves task items by their title.
 
         Args:
             attr_value (str): The title to search for.
+            pagination_query (Pagination): Pagination and sorting parameters.
 
         Returns:
-            List[TodoBoundary]: List of task items with the matching title.
+            List[TodoBoundary]: A paginated list of task items with the matching title.
         """
         await asyncio.sleep(self.MOCK_RESPONSE_DELAY)
-        return [TodoBoundary.from_entity(todo_entity) for todo_entity in self.todo_dao if
-                todo_entity.title == attr_value]
+        todo_entities = sorted(
+            list(filter(lambda entity: entity.title == attr_value, self.todo_dao))[
+                pagination_query.offset(): pagination_query.offset() + pagination_query.size
+            ],
+            key=lambda obj: getattr(obj, pagination_query.order_by),
+            reverse=pagination_query.desc,
+        )
+        return [TodoBoundary.from_entity(todo_entity) for todo_entity in todo_entities]
 
-    async def get_todo_by_priority(self, attr_value: str) -> List[TodoBoundary]:
+    async def get_todo_by_priority(self, attr_value: str, pagination_query: Pagination) -> List[TodoBoundary]:
         """
         Retrieves task items by their priority.
 
         Args:
             attr_value (str): The priority level ("low", "medium", "high").
+            pagination_query (Pagination): Pagination and sorting parameters.
 
         Returns:
-            List[TodoBoundary]: List of task items with the matching priority.
+            List[TodoBoundary]: A paginated list of task items with the matching priority.
 
         Raises:
-            ValueError: If the priority is not one of "low", "medium", or "high".
+            ValueError: If the priority is invalid.
         """
         await asyncio.sleep(self.MOCK_RESPONSE_DELAY)
         try:
             priority = Priority(attr_value.upper())
         except ValueError:
-            raise ValueError('Priority can only be "low", "medium" and "high"')
-        return [TodoBoundary.from_entity(todo_entity) for todo_entity in self.todo_dao if
-                todo_entity.priority == priority]
+            raise ValueError('Priority can only be "low", "medium", or "high".')
+
+        todo_entities = sorted(
+            list(filter(lambda entity: entity.priority == priority, self.todo_dao))[
+                pagination_query.offset():pagination_query.offset() + pagination_query.size
+            ],
+            key=lambda obj: getattr(obj, pagination_query.order_by),
+            reverse=pagination_query.desc,
+        )
+        return [TodoBoundary.from_entity(todo_entity) for todo_entity in todo_entities]
 
     async def create_todo(self, todo_boundary: TodoBoundary) -> TodoBoundary:
         """
